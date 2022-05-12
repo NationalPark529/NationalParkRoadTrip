@@ -106,7 +106,15 @@ class ParkVRP:
                 print(park.park_name + "," +  str(park.coordinates[0]) + "," + str(park.coordinates[1]))
             print("\n")
 
+        urls = []
+        for trip in final_results:
+            url = f"&origin={self.homeAddress.replace(' ', '+')}&waypoints="
+            for park in trip:
+                url += f"{park.coordinates[0]},{park.coordinates[1]}|"
+            url += f"&origin={self.homeAddress.replace(' ', '+')}"
+            urls.append(url)
 
+        return final_results, urls
 
 class Destination:
     def __init__(self, park_id,park_name, coordinates, time_on_site):
