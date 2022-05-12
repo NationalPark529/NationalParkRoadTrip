@@ -110,8 +110,9 @@ class ParkVRP:
         for trip in final_results:
             url = f"&origin={self.homeAddress.replace(' ', '+')}&waypoints="
             for park in trip:
-                url += f"{park.coordinates[0]},{park.coordinates[1]}|"
-            url += f"&origin={self.homeAddress.replace(' ', '+')}"
+                url += f"{park.coordinates[1]},{park.coordinates[0]}|"
+            url = url.rstrip(url[-1])
+            url += f"&destination={self.homeAddress.replace(' ', '+')}"
             urls.append(url)
 
         return final_results, urls
