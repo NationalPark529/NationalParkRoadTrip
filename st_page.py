@@ -1,24 +1,23 @@
 import streamlit as st
-import pandas as pd
 
 import ParkVRP
 #get root
 address = st.text_input("Please enter your address:")
 
-#get time gone
-time = st.text_input("How many parks do you want to visit?")
-if (time!=""):
+#get number of parks
+numparks = st.text_input("How many parks do you want to visit?")
+if (numparks!=""):
     try:
-        time = int(time)
+        numparks = int(numparks)
     except:
         st.write("\nPlease enter an integer number.\n")
 
 
 #init
 if (st.button("Click to optimize!")):
-    opt = ParkVRP.ParkVRP(time, address)
+    opt = ParkVRP.ParkVRP(numparks, address)
     list, url = opt.solve()
-    src = f"https://www.google.com/maps/embed/v1/directions?key={st.secrets['GOG_KEY']}&{url[0]}"
-    st.components.v1.iframe(src, width=600, height=450, scrolling=False)
+    for x in url:
+        src = f"https://www.google.com/maps/embed/v1/directions?key={st.secrets['GOG_KEY']}&{x}"
+        st.components.v1.iframe(src, width=600, height=450, scrolling=False)
 
-#config and secrets file
