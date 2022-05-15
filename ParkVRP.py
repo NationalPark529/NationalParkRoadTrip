@@ -142,40 +142,40 @@ class ParkVRP:
         #return final_results, urls
 
     def solve(self):
-            #load park data to memory
+            #load park data
             parks_df = pd.read_csv("data/NPS_Optimization_Data.csv")
-
 
             #hit ORS with string address and return coordinates
             client = openrouteservice.Client(key=st.secrets["ORS_KEY"])
             addressJSON = g.pelias_search(client=client, text=self.homeAddress)
             address_coordinates = addressJSON["features"][0]["geometry"]["coordinates"]
 
+            #create list of locations [lng,lat]
             locations = []
             locations.append(address_coordinates)
             for index, row in parks_df.iterrows():
                 if np.isnan(row["visitor_lon"]):
                     continue
                 locations.append([row["visitor_lon"],row["visitor_lat"]])
+
+            #Query distance matrix
             distance_matrix = ors_matrix.distance_matrix(client, locations=locations, metrics = ["distance", "duration"])
-            print(distance_matrix)
+
+            #retrieve distance matrix only from response object
             distance_matrix= distance_matrix["distances"]
-            print(distance_matrix)
-            vehicleNumber = int(50/self.numParks) + 5
-            print(vehicleNumber)
+
+            #Calculate appropriate number of 'vehicles' in problem  (trip)
+            #+1 ensures that there will always be adequate capacity in case of rounding down.
+            vehicleNumber = int(50/self.numParks) + 1
+
+            #index of depot (user address) in distance matrix
             depot = 0
 
-            #ortools example
-            """Entry point of the program."""
-
-
-            # Create the routing index manager.
+            # Create the routing index manager
             manager = pywrapcp.RoutingIndexManager(len(distance_matrix),
-                                           vehicleNumber, 0)
-
+                                           vehicleNumber, depot)
             # Create Routing Model.
             routing = pywrapcp.RoutingModel(manager)
-
 
 
             # Create and register a transit callback.
@@ -188,45 +188,53 @@ class ParkVRP:
 
             transit_callback_index = routing.RegisterTransitCallback(distance_callback)
 
-    # Define cost of each arc.
+            # Define cost of each arc. (distance)
             routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
-    # Add Distance constraint.
+            # Add Distance constraint.
             dimension_name = 'Distance'
             routing.AddDimension(
-        transit_callback_index,
-        0,  # no slack
-        100000000,  # vehicle maximum travel distance
-        True,  # start cumul to zero
-        dimension_name)
+                transit_callback_index,
+                0,  # no slack
+                100000000,  # vehicle maximum travel distance
+                True,  # start cumul to zero
+                dimension_name)
+
             distance_dimension = routing.GetDimensionOrDie(dimension_name)
             distance_dimension.SetGlobalSpanCostCoefficient(100)
 
-            # Setting first solution heuristic.
+
+            # SEARCH PARAMETERS
             search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+
+            #Heuristic for finding starting place
             search_parameters.first_solution_strategy = (
             routing_enums_pb2.FirstSolutionStrategy.LOCAL_CHEAPEST_INSERTION)
-            search_parameters.time_limit.seconds = 60
-            search_parameters.log_search = True
+            #Solution Metaheuristic
             search_parameters.local_search_metaheuristic = (
                 routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
             )
 
-            #search_parameters.
+            #Search limits
+            search_parameters.time_limit.seconds = 60
+            search_parameters.solution_limit = 100
+
+            #For debugging
+            search_parameters.log_search = True
 
             #add capacity constraint
             def demand_callback(from_index):
                 """Returns the demand of the node."""
-                # Convert from routing variable Index to demands NodeIndex.
-                from_node = manager.IndexToNode(from_index)
-
+             #   Demand is always 1
                 return 1
 
+            #Create vehicle capacities (+1)
             capacities = []
             for i in range(0, vehicleNumber):
-                capacities.append(self.numParks)
+                capacities.append(self.numParks + 1)
 
             print(capacities)
+
             demand_callback_index = routing.RegisterUnaryTransitCallback(
             demand_callback)
             routing.AddDimensionWithVehicleCapacity(
@@ -235,37 +243,39 @@ class ParkVRP:
                 capacities,  # vehicle maximum capacities
                 True,  # start cumul to zero
                 'Capacity')
+
             # Solve the problem.
             solution = routing.SolveWithParameters(search_parameters)
 
-            # Print solution on console.
-
+            # Print solution to Console
             if solution:
                 print_solution(vehicleNumber, manager, routing, solution)
             else:
                 print('No solution found !')
 
+            #Format solution data for frontend
             output = []
             for vehicle_id in range(vehicleNumber):
                 trip = []
                 index = routing.Start(vehicle_id)
-                plan_output = 'Route for vehicle {}:\n'.format(vehicle_id)
-                route_distance = 0
-                #solution.Value()
                 while not routing.IsEnd(index):
                     index = solution.Value(routing.NextVar(index))
-                    print(index)
-                    if (index != 0 )& (int(index) < 50):
+
+                    #Exclude depot indices
+                    if (index != 0 )& (int(index) < 51):
                         trip.append(Destination(index,parks_df["UNIT_NAME"][index-1],[parks_df["visitor_lon"][int(index)-1],parks_df["visitor_lat"][int(index)-1]],time_on_site = 0))
                 output.append(trip)
 
+            #print directions objects for debugging purposes
             for trip in output:
                 for park in trip:
                     print(park.park_name)
                 print("\n")
 
+            #Generate google maps http request piece
             urls = []
             for trip in output:
+                print(trip)
                 url = f"&origin={self.homeAddress.replace(' ', '+')}&waypoints="
                 for park in trip:
                     url += f"{park.coordinates[1]},{park.coordinates[0]}|"
