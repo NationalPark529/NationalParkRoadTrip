@@ -12,7 +12,7 @@ if (numparks!=""):
         st.write("\nPlease enter an integer number.\n")
 
 
-#generate advanced options string. At present this doesn't do anything to avoid complicating debugging the back-end
+#generate advanced options string
 
 avoid_tolls = False
 avoid_ferries = False
