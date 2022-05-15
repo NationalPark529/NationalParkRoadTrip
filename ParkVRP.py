@@ -105,12 +105,12 @@ class ParkVRP:
             routing_enums_pb2.FirstSolutionStrategy.LOCAL_CHEAPEST_INSERTION)
             #Solution Metaheuristic
             search_parameters.local_search_metaheuristic = (
-                routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+                routing_enums_pb2.LocalSearchMetaheuristic.AUTOMATIC
             )
 
             #Search limits
-            search_parameters.time_limit.seconds = 60
-            search_parameters.solution_limit = 100
+            search_parameters.time_limit.seconds = 90
+            #search_parameters.solution_limit = 100
 
             #For debugging
             search_parameters.log_search = True
