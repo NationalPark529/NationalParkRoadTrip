@@ -171,7 +171,6 @@ class ParkVRP:
                 print(trip)
                 url = f"&origin={self.homeAddress.replace(' ', '+')}&waypoints="
                 for park in trip:
-                    print(parks_df[parks_df['UNIT_NAME'] == park.park_name]['plus_code'].values[0])
                     if (park.park_name == "Channel Islands National Park") | (park.park_name == "Voyageurs National Park"):
                         url += f"{park.park_name}Visitors+Center|"
                     else:

@@ -1,7 +1,7 @@
 import streamlit as st
 import ParkVRP
 #get root
-address = st.text_input("Please enter your address:")
+address = st.text_input("Enter the address you'll be starting your trip from:")
 
 #get number of parks
 numparks = st.text_input("How many parks do you want to visit?")
