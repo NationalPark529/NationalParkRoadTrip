@@ -30,23 +30,21 @@ def print_solution(num_vehicles, manager, routing, solution):
 
 
 class ParkVRP:
-    def __init__(self,numParks, homeAddress):
-        self.numParks = numParks
-        self.homeAddress = homeAddress
+    def __init__(self):
+        #load park data
+        self.parks_df = pd.read_csv("data/NPS_Optimization_Data.csv")
+        #I think it makes more sense to structure it like this-read the csv one time and use the object repeatedly
 
-    def solve(self):
-            #load park data
-            parks_df = pd.read_csv("data/NPS_Optimization_Data.csv")
-
+    def solve(self, numParks, homeAddress):
             #hit ORS with string address and return coordinates
             client = openrouteservice.Client(key=st.secrets["ORS_KEY"])
-            addressJSON = g.pelias_search(client=client, text=self.homeAddress)
+            addressJSON = g.pelias_search(client=client, text=homeAddress)
             address_coordinates = addressJSON["features"][0]["geometry"]["coordinates"]
 
             #create list of locations [lng,lat]
             locations = []
             locations.append(address_coordinates)
-            for index, row in parks_df.iterrows():
+            for index, row in self.parks_df.iterrows():
                 if np.isnan(row["visitor_lon"]):
                     continue
                 locations.append([row["visitor_lon"],row["visitor_lat"]])
@@ -59,7 +57,7 @@ class ParkVRP:
 
             #Calculate appropriate number of 'vehicles' in problem  (trip)
             #+1 ensures that there will always be adequate capacity in case of rounding down.
-            vehicleNumber = int(50/self.numParks) + 1
+            vehicleNumber = int(50/numParks) + 1
 
             #index of depot (user address) in distance matrix
             depot = 0
@@ -124,7 +122,7 @@ class ParkVRP:
             #Create vehicle capacities (+1)
             capacities = []
             for i in range(0, vehicleNumber):
-                capacities.append(self.numParks + 1)
+                capacities.append(numParks + 1)
 
             print(capacities)
 
@@ -156,7 +154,7 @@ class ParkVRP:
 
                     #Exclude depot indices
                     if (index != 0 )& (int(index) < 51):
-                        trip.append(Destination(index,parks_df["UNIT_NAME"][index-1],[parks_df["visitor_lon"][int(index)-1],parks_df["visitor_lat"][int(index)-1]],time_on_site = 0))
+                        trip.append(Destination(index,self.parks_df["UNIT_NAME"][index-1],[self.parks_df["visitor_lon"][int(index)-1],self.parks_df["visitor_lat"][int(index)-1]],time_on_site = 0))
                 output.append(trip)
 
             #print directions objects for debugging purposes
@@ -169,14 +167,14 @@ class ParkVRP:
             urls = []
             for trip in output:
                 print(trip)
-                url = f"&origin={self.homeAddress.replace(' ', '+')}&waypoints="
+                url = f"&origin={homeAddress.replace(' ', '+')}&waypoints="
                 for park in trip:
                     if (park.park_name == "Channel Islands National Park") | (park.park_name == "Voyageurs National Park"):
                         url += f"{park.park_name}Visitors+Center|"
                     else:
                         url += f"{park.park_name}|"
                 url = url.rstrip(url[-1])
-                url += f"&destination={self.homeAddress.replace(' ', '+')}"
+                url += f"&destination={homeAddress.replace(' ', '+')}"
                 urls.append(url)
             return output, urls
 
