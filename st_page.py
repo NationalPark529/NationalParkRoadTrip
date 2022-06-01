@@ -1,7 +1,7 @@
+#from turtle import width
 import streamlit as st
 import ParkVRP
-import urllib.request
-import json
+import ParkInfo
 
 #computation function
 def optimize_route(numparks, address):
@@ -28,9 +28,11 @@ def optimize_route(numparks, address):
 if 'show_maps' not in st.session_state:
     st.session_state.show_maps = False
 
-#initialize the solver for the session-saves the work of repeatedly reading the csv
+#initialize the solver and ParkInfo objects for the session-saves a lot of work
 if 'opt' not in st.session_state:
     st.session_state.opt = ParkVRP.ParkVRP()
+if 'info' not in st.session_state:
+    st.session_state.info = ParkInfo.ParkInfo()
 
 #so optimize_route doesn't throw a fit when it tries to access these for the first time
 if 'numparks' not in st.session_state:
@@ -76,6 +78,8 @@ with st.form("Trip information"):
 
     advanced_configuration = f"{avoid_string}&units={units}"
 
+    display_park_names = st.checkbox("List park names and IDs")
+
 
     #submit form
     if (st.form_submit_button("Click to optimize!")):
@@ -85,19 +89,25 @@ with st.form("Trip information"):
         st.session_state.url = url
 
 
-#display maps
+info_request_ID = st.text_input("Want to learn more about a specific park? Put its ID here.", value = "0")
+try:
+    info_request_ID = int(info_request_ID)
+except:
+    st.write("Must be an integer")
+if (info_request_ID > 0):
+    #currently this just displays the first image available for the park, it's a placeholder for later
+    park_information = st.session_state.info.get_park_info(info_request_ID)
+    src = park_information["images"][0]["url"]
+    st.components.v1.iframe(src, width = 1000, height = 1000, scrolling=True)
+
+
+#display maps and trip information
 if (st.session_state.show_maps):
     for x in st.session_state.url:
         src = f"https://www.google.com/maps/embed/v1/directions?key={st.secrets['GOG_KEY']}&{x}{advanced_configuration}"
         st.components.v1.iframe(src, width=600, height=450, scrolling=False)
-
-
-#test the nps api
-
-#endpoint = f"https://developer.nps.gov/api/v1/parks?parkCode=VIIS&limit=50&start=0&api_key={st.secrets['NPS_KEY']}"
-#HEADERS = {"Authorization":st.secrets['NPS_KEY']}
-#req = urllib.request.Request(endpoint,headers=HEADERS)
-#content = urllib.request.urlopen(req).read().decode()
-#st.write(content)
-
-#st.components.v1.iframe(req, width=600, height=450, scrolling=False)
+    if (display_park_names):
+        for trip in list:
+            for park in trip:
+                park_info_string = park.park_name + " | ID: " + str(park.park_id)
+                st.write(park_info_string)
